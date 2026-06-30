@@ -1,0 +1,330 @@
+Board.java
+
+import java.util.Arrays;
+import java.util.Random;
+
+public class Board {
+    private static final int SIZE = 9;
+    private static final int EMPTY_CELL = 0;
+    private int[][] grid;
+    private int[][] initialGrid; // Armazena o estado inicial para referência
+
+    public Board() {
+        this.grid = new int[SIZE][SIZE];
+        this.initialGrid = new int[SIZE][SIZE];
+    }
+
+    // Retorna o valor na célula (row, col)
+    public int getCell(int row, int col) {
+        if (row < 0 || row >= SIZE || col < 0 || col >= SIZE) {
+            throw new IllegalArgumentException("Coordenadas inválidas: (" + row + ", " + col + ")");
+        }
+        return grid[row][col];
+    }
+
+    // Define o valor na célula (row, col) se for uma célula editável
+    public boolean setCell(int row, int col, int value) {
+        if (row < 0 || row >= SIZE || col < 0 || col >= SIZE) {
+            throw new IllegalArgumentException("Coordenadas inválidas: (" + row + ", " + col + ")");
+        }
+        if (initialGrid[row][col] != EMPTY_CELL) { // Não pode alterar células preenchidas no início
+            return false;
+        }
+        if (value < 1 || value > 9) {
+            throw new IllegalArgumentException("Valor inválido: " + value + ". Deve ser entre 1 e 9.");
+        }
+        if (isValidMove(row, col, value)) {
+            grid[row][col] = value;
+            return true;
+        }
+        return false; // Movimento inválido
+    }
+
+    // Verifica se um valor pode ser colocado em uma célula sem violar as regras
+    private boolean isValidMove(int row, int col, int value) {
+        // Verifica a linha
+        for (int c = 0; c < SIZE; c++) {
+            if (grid[row][c] == value && c != col) {
+                return false;
+            }
+        }
+
+        // Verifica a coluna
+        for (int r = 0; r < SIZE; r++) {
+            if (grid[r][col] == value && r != row) {
+                return false;
+            }
+        }
+
+        // Verifica o quadrante 3x3
+        int startRow = (row / 3) * 3;
+        int startCol = (col / 3) * 3;
+        for (int r = startRow; r < startRow + 3; r++) {
+            for (int c = startCol; c < startCol + 3; c++) {
+                if (grid[r][c] == value && r != row && c != col) {
+                    return false;
+                }
+            }
+        }
+
+        return true; // Movimento é válido
+    }
+
+    // Verifica se o tabuleiro está completo e válido
+    public boolean isComplete() {
+        for (int r = 0; r < SIZE; r++) {
+            for (int c = 0; c < SIZE; c++) {
+                if (grid[r][c] == EMPTY_CELL) {
+                    return false; // Ainda tem célula vazia
+                }
+                // Verifica se a célula atual viola alguma regra
+                int currentValue = grid[r][c];
+                grid[r][c] = EMPTY_CELL; // Remove temporariamente para verificar
+                if (!isValidMove(r, c, currentValue)) {
+                     grid[r][c] = currentValue; // Restaura e retorna falso
+                     return false;
+                }
+                grid[r][c] = currentValue; // Restaura o valor
+            }
+        }
+        return true; // Completo e válido
+    }
+
+    // Inicializa o tabuleiro com um puzzle aleatório
+    public void initializeRandomPuzzle() {
+        // Cria um puzzle resolvido
+        int[][] solvedBoard = generateSolvedBoard();
+
+        // Cria uma cópia para o puzzle inicial
+        for (int i = 0; i < SIZE; i++) {
+            System.arraycopy(solvedBoard[i], 0, grid[i], 0, SIZE);
+        }
+
+        // Remove algumas células para criar o puzzle
+        Random random = new Random();
+        int cellsToRemove = 40; // Quantidade de células a serem removidas (ajuste a dificuldade)
+        int removed = 0;
+        while (removed < cellsToRemove) {
+            int row = random.nextInt(SIZE);
+            int col = random.nextInt(SIZE);
+
+            if (grid[row][col] != EMPTY_CELL) {
+                int backup = grid[row][col];
+                grid[row][col] = EMPTY_CELL;
+
+                // Verifica se o puzzle ainda tem uma solução única (opcional e complexo)
+                // Por simplicidade, vamos apenas garantir que ainda seja possível resolver
+                if (canBeSolved()) {
+                    initialGrid[row][col] = EMPTY_CELL; // Marca como vazio no estado inicial
+                    removed++;
+                } else {
+                    // Se não puder ser resolvido, restaura
+                    grid[row][col] = backup;
+                }
+            }
+        }
+
+        // Copia o estado inicial (com células vazias) para initialGrid
+        for (int i = 0; i < SIZE; i++) {
+             System.arraycopy(grid[i], 0, initialGrid[i], 0, SIZE);
+        }
+    }
+
+    // Gera um tabuleiro resolvido aleatoriamente (usando backtracking)
+    private int[][] generateSolvedBoard() {
+        int[][] board = new int[SIZE][SIZE];
+        fillBoard(board);
+        return board;
+    }
+
+    // Preenche o tabuleiro recursivamente (backtracking)
+    private boolean fillBoard(int[][] board) {
+        for (int r = 0; r < SIZE; r++) {
+            for (int c = 0; c < SIZE; c++) {
+                if (board[r][c] == EMPTY_CELL) {
+                    int[] numbers = {1, 2, 3, 4, 5, 6, 7, 8, 9};
+                    shuffleArray(numbers); // Embaralha para variedade
+                    for (int num : numbers) {
+                        if (isValidPlacement(board, r, c, num)) {
+                            board[r][c] = num;
+                            if (fillBoard(board)) {
+                                return true;
+                            }
+                            board[r][c] = EMPTY_CELL; // Backtrack
+                        }
+                    }
+                    return false; // Nenhum número válido encontrado
+                }
+            }
+        }
+        return true; // Tabuleiro completo
+    }
+
+    // Verifica se um número pode ser colocado em uma posição específica de um tabuleiro
+    private boolean isValidPlacement(int[][] board, int row, int col, int value) {
+        // Linha
+        for (int c = 0; c < SIZE; c++) {
+            if (board[row][c] == value) return false;
+        }
+        // Coluna
+        for (int r = 0; r < SIZE; r++) {
+            if (board[r][col] == value) return false;
+        }
+        // Quadrante
+        int startRow = (row / 3) * 3;
+        int startCol = (col / 3) * 3;
+        for (int r = startRow; r < startRow + 3; r++) {
+            for (int c = startCol; c < startCol + 3; c++) {
+                if (board[r][c] == value) return false;
+            }
+        }
+        return true;
+    }
+
+    // Embaralha um array de inteiros
+    private void shuffleArray(int[] array) {
+        Random random = new Random();
+        for (int i = array.length - 1; i > 0; i--) {
+            int j = random.nextInt(i + 1);
+            int temp = array[i];
+            array[i] = array[j];
+            array[j] = temp;
+        }
+    }
+
+    // Verifica se o tabuleiro pode ser resolvido (usando um solver simples)
+    private boolean canBeSolved() {
+        int[][] tempGrid = new int[SIZE][SIZE];
+        for (int i = 0; i < SIZE; i++) {
+             System.arraycopy(grid[i], 0, tempGrid[i], 0, SIZE);
+        }
+        return solve(tempGrid);
+    }
+
+    // Algoritmo de resolução por backtracking (adaptado do fillBoard)
+    private boolean solve(int[][] board) {
+        for (int r = 0; r < SIZE; r++) {
+            for (int c = 0; c < SIZE; c++) {
+                if (board[r][c] == EMPTY_CELL) {
+                    for (int num = 1; num <= 9; num++) {
+                        if (isValidPlacement(board, r, c, num)) {
+                            board[r][c] = num;
+                            if (solve(board)) {
+                                return true;
+                            }
+                            board[r][c] = EMPTY_CELL; // Backtrack
+                        }
+                    }
+                    return false; // Nenhum número válido encontrado
+                }
+            }
+        }
+        return true; // Tabuleiro completo e resolvido
+    }
+
+
+    // Exibe o tabuleiro no terminal
+    public void display() {
+        System.out.println("  +-------+-------+-------+");
+        for (int r = 0; r < SIZE; r++) {
+            if (r % 3 == 0 && r != 0) {
+                 System.out.println("  +-------+-------+-------+");
+            }
+            System.out.print((r % 3 == 0 ? " " : "") + " | ");
+            for (int c = 0; c < SIZE; c++) {
+                if (c % 3 == 0 && c != 0) {
+                     System.out.print("| ");
+                }
+                if (grid[r][c] == EMPTY_CELL) {
+                    System.out.print(". "); // Mostra célula vazia como '.'
+                } else {
+                    System.out.print(grid[r][c] + " ");
+                }
+            }
+            System.out.println("|");
+        }
+        System.out.println("  +-------+-------+-------+");
+    }
+
+    // Retorna o estado inicial do tabuleiro
+    public int[][] getInitialGrid() {
+        int[][] copy = new int[SIZE][SIZE];
+        for (int i = 0; i < SIZE; i++) {
+             System.arraycopy(initialGrid[i], 0, copy[i], 0, SIZE);
+        }
+        return copy;
+    }
+}
+
+
+
+
+
+SudokuGame.java
+
+import java.util.Scanner;
+
+public class SudokuGame {
+
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+        Board board = new Board();
+
+        System.out.println("Bem-vindo ao Jogo de Sudoku!");
+        board.initializeRandomPuzzle();
+        board.display();
+
+        while (!board.isComplete()) {
+            System.out.println("\nDigite sua jogada:");
+            System.out.println("Formato: <linha> <coluna> <valor> (ex: 0 1 5)");
+            System.out.println("Ou digite 'sair' para encerrar.");
+
+            String input = scanner.nextLine().trim();
+
+            if (input.equalsIgnoreCase("sair")) {
+                System.out.println("Jogo encerrado.");
+                break;
+            }
+
+            String[] parts = input.split("\\s+");
+            if (parts.length != 3) {
+                System.out.println("Formato inválido. Use: <linha> <coluna> <valor>");
+                continue;
+            }
+
+            try {
+                int row = Integer.parseInt(parts[0]);
+                int col = Integer.parseInt(parts[1]);
+                int value = Integer.parseInt(parts[2]);
+
+                if (board.setCell(row, col, value)) {
+                    System.out.println("Movimento realizado!");
+                    board.display();
+                } else {
+                    System.out.println("Movimento inválido! A célula pode estar preenchida ou o valor viola as regras do Sudoku.");
+                }
+            } catch (NumberFormatException e) {
+                System.out.println("Erro: Por favor, digite números inteiros válidos para linha, coluna e valor.");
+            } catch (IllegalArgumentException e) {
+                 System.out.println("Erro: " + e.getMessage());
+            }
+        }
+
+        if (board.isComplete()) {
+            System.out.println("\nParabéns! Você completou o Sudoku!");
+            board.display();
+        }
+
+        scanner.close();
+    }
+}
+
+
+Como Executar
+Salve o código Board.java e SudokuGame.java em arquivos separados no mesmo diretório.
+Compile os arquivos: javac Board.java SudokuGame.java
+Execute o jogo: java SudokuGame
+Siga as instruções no terminal para jogar. Digite linha coluna valor para preencher uma célula (ex: 0 1 5). Digite sair para encerrar.
+
+
+
