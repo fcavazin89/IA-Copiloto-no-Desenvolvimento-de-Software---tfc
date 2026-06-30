@@ -1,0 +1,516 @@
+Estrutura do Projeto e Dependências (pom.xml)
+
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.3.0</version> <!-- Verifique a versão mais recente -->
+        <relativePath/>
+    </parent>
+    <groupId>com.example</groupId>
+    <artifactId>smart-budget-api</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <name>smart-budget-api</name>
+    <description>API Inteligente com Spring Boot e Spring AI</description>
+    <properties>
+        <java.version>17</java.version>
+        <spring-ai.version>1.0.0-M1</spring-ai.version> <!-- Verifique a versão mais recente do Spring AI -->
+    </properties>
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-openai-spring-boot-starter</artifactId> <!-- Ou spring-ai-anthropic-spring-boot-starter -->
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-bom</artifactId>
+                <version>${spring-ai.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>
+
+
+
+Configuração Principal (Application.java)
+package com.example.smartbudgetapi;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class SmartBudgetApiApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(SmartBudgetApiApplication.class, args);
+    }
+
+}
+
+
+Entidades JPA (Transaction.java)
+
+package com.example.smartbudgetapi.model;
+
+import jakarta.persistence.*;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+
+@Entity
+@Table(name = "transactions")
+public class Transaction {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private String description;
+    private BigDecimal amount;
+    private String type; // "EXPENSE" ou "INCOME"
+
+    @Column(name = "transaction_date")
+    private LocalDate transactionDate;
+
+    // Construtores
+    public Transaction() {}
+
+    public Transaction(String description, BigDecimal amount, String type, LocalDate transactionDate) {
+        this.description = description;
+        this.amount = amount;
+        this.type = type;
+        this.transactionDate = transactionDate;
+    }
+
+    // Getters e Setters
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public BigDecimal getAmount() {
+        return amount;
+    }
+
+    public void setAmount(BigDecimal amount) {
+        this.amount = amount;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
+
+    public LocalDate getTransactionDate() {
+        return transactionDate;
+    }
+
+    public void setTransactionDate(LocalDate transactionDate) {
+        this.transactionDate = transactionDate;
+    }
+}
+
+ Repositório JPA (TransactionRepository.java)
+package com.example.smartbudgetapi.repository;
+
+import com.example.smartbudgetapi.model.Transaction;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import java.util.List;
+
+@Repository
+public interface TransactionRepository extends JpaRepository<Transaction, Long> {
+    List<Transaction> findByType(String type);
+    List<Transaction> findByTransactionDateBetween(java.time.LocalDate start, java.time.LocalDate end);
+    // Outros métodos customizados conforme necessário
+}
+
+ Serviço de Negócio (TransactionService.java)
+
+package com.example.smartbudgetapi.service;
+
+import com.example.smartbudgetapi.model.Transaction;
+import com.example.smartbudgetapi.repository.TransactionRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.List;
+
+@Service
+public class TransactionService {
+
+    @Autowired
+    private TransactionRepository transactionRepository;
+
+    public Transaction save(Transaction transaction) {
+        if (transaction.getTransactionDate() == null) {
+            transaction.setTransactionDate(LocalDate.now());
+        }
+        return transactionRepository.save(transaction);
+    }
+
+    public List<Transaction> findAll() {
+        return transactionRepository.findAll();
+    }
+
+    public List<Transaction> findByType(String type) {
+        return transactionRepository.findByType(type);
+    }
+
+    public BigDecimal calculateTotalByType(String type) {
+        List<Transaction> transactions = findByType(type);
+        return transactions.stream()
+                .map(Transaction::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    // Outros métodos de negócio conforme necessário
+}
+
+Componente de Ferramentas para Spring AI (BudgetTools.java)
+java
+
+
+package com.example.smartbudgetapi.ai;
+
+import com.example.smartbudgetapi.model.Transaction;
+import com.example.smartbudgetapi.service.TransactionService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.openai.OpenAiChatModel;
+import org.springframework.ai.openai.api.OpenAiApi;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+
+@Component
+public class BudgetTools {
+
+    private static final Logger logger = LoggerFactory.getLogger(BudgetTools.class);
+
+    @Autowired
+    private TransactionService transactionService;
+
+    @Autowired
+    private ChatClient chatClient; // Injetado automaticamente pelo Spring AI starter
+
+    // Tool para adicionar uma despesa
+    public String addExpense(String description, double amount, String dateStr) {
+        try {
+            LocalDate date = dateStr != null ? LocalDate.parse(dateStr) : LocalDate.now();
+            Transaction expense = new Transaction(description, BigDecimal.valueOf(amount), "EXPENSE", date);
+            Transaction savedExpense = transactionService.save(expense);
+            logger.info("Despesa adicionada: {}", savedExpense);
+            return "Despesa de R$ " + amount + " para '" + description + "' adicionada com sucesso.";
+        } catch (Exception e) {
+            logger.error("Erro ao adicionar despesa: ", e);
+            return "Erro ao adicionar despesa: " + e.getMessage();
+        }
+    }
+
+    // Tool para adicionar uma receita
+    public String addIncome(String description, double amount, String dateStr) {
+        try {
+            LocalDate date = dateStr != null ? LocalDate.parse(dateStr) : LocalDate.now();
+            Transaction income = new Transaction(description, BigDecimal.valueOf(amount), "INCOME", date);
+            Transaction savedIncome = transactionService.save(income);
+            logger.info("Receita adicionada: {}", savedIncome);
+            return "Receita de R$ " + amount + " para '" + description + "' adicionada com sucesso.";
+        } catch (Exception e) {
+            logger.error("Erro ao adicionar receita: ", e);
+            return "Erro ao adicionar receita: " + e.getMessage();
+        }
+    }
+
+    // Tool para obter o total de despesas
+    public String getTotalExpenses() {
+        try {
+            BigDecimal total = transactionService.calculateTotalByType("EXPENSE");
+            logger.info("Total de despesas solicitado: {}", total);
+            return "O total de despesas é R$ " + total;
+        } catch (Exception e) {
+            logger.error("Erro ao calcular total de despesas: ", e);
+            return "Erro ao calcular total de despesas: " + e.getMessage();
+        }
+    }
+
+    // Tool para obter o total de receitas
+    public String getTotalIncomes() {
+        try {
+            BigDecimal total = transactionService.calculateTotalByType("INCOME");
+            logger.info("Total de receitas solicitado: {}", total);
+            return "O total de receitas é R$ " + total;
+        } catch (Exception e) {
+            logger.error("Erro ao calcular total de receitas: ", e);
+            return "Erro ao calcular total de receitas: " + e.getMessage();
+        }
+    }
+
+    // Tool para obter todas as transações recentes (últimos 7 dias, por exemplo)
+    public String getRecentTransactions() {
+        try {
+            LocalDate endDate = LocalDate.now();
+            LocalDate startDate = endDate.minusDays(7);
+            List<Transaction> transactions = transactionService.findByTransactionDateBetween(startDate, endDate);
+            logger.info("Transações recentes solicitadas ({} a {}). Quantidade: {}", startDate, endDate, transactions.size());
+            if (transactions.isEmpty()) {
+                return "Nenhuma transação encontrada nos últimos 7 dias.";
+            }
+            StringBuilder sb = new StringBuilder("Transações recentes:\n");
+            for (Transaction t : transactions) {
+                sb.append("- ").append(t.getType()).append(": ").append(t.getDescription())
+                  .append(" (R$ ").append(t.getAmount()).append(") em ").append(t.getTransactionDate()).append("\n");
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            logger.error("Erro ao buscar transações recentes: ", e);
+            return "Erro ao buscar transações recentes: " + e.getMessage();
+        }
+    }
+}
+
+Controlador REST (TransactionController.java)
+
+package com.example.smartbudgetapi.controller;
+
+import com.example.smartbudgetapi.ai.BudgetTools;
+import com.example.smartbudgetapi.model.Transaction;
+import com.example.smartbudgetapi.service.TransactionService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+@RestController
+@RequestMapping("/api/budget")
+public class TransactionController {
+
+    private static final Logger logger = LoggerFactory.getLogger(TransactionController.class);
+
+    @Autowired
+    private TransactionService transactionService;
+
+    @Autowired
+    private BudgetTools budgetTools;
+
+    @Autowired
+    private ChatClient chatClient; // Injetado automaticamente
+
+    // Endpoint REST convencional para transações
+    @GetMapping("/transactions")
+    public ResponseEntity<List<Transaction>> getAllTransactions() {
+        List<Transaction> transactions = transactionService.findAll();
+        return ResponseEntity.ok(transactions);
+    }
+
+    @PostMapping("/transactions")
+    public ResponseEntity<Transaction> createTransaction(@RequestBody Transaction transaction) {
+        Transaction savedTransaction = transactionService.save(transaction);
+        return ResponseEntity.ok(savedTransaction);
+    }
+
+    // Endpoint para processar áudio de voz -> texto -> IA -> áudio de resposta
+    @PostMapping(value = "/voice", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<byte[]> processVoiceCommand(
+            @RequestParam("audio") MultipartFile audioFile,
+            @RequestParam(value = "userId", required = false) String userId) { // Exemplo de contexto
+
+        logger.info("Recebido arquivo de áudio para processamento: {}", audioFile.getOriginalFilename());
+
+        try {
+            // 1. Transcrever áudio para texto (simulado ou via API real)
+            // Para este exemplo, vamos simular a transcrição
+            String audioContent = new String(audioFile.getBytes()); // Isso NÃO é uma transcrição real!
+            String transcription = simulateTranscription(audioContent); // Substitua por chamada real à API de transcrição
+
+            logger.info("Texto transcrito: {}", transcription);
+
+            // 2. Preparar contexto e mensagem para o ChatClient
+            String systemPrompt = """
+                Você é um assistente financeiro inteligente. Interprete os comandos do usuário e utilize as ferramentas disponíveis para gerenciar o orçamento.
+                As ferramentas disponíveis são:
+                 - addExpense(description, amount, date): Adiciona uma despesa.
+                 - addIncome(description, amount, date): Adiciona uma receita.
+                 - getTotalExpenses(): Retorna o total de despesas.
+                 - getTotalIncomes(): Retorna o total de receitas.
+                 - getRecentTransactions(): Retorna transações recentes.
+                Use o formato correto para chamar as ferramentas.
+                Responda em português brasileiro de forma clara e concisa.
+                """;
+
+            Map<String, Object> context = new HashMap<>();
+            context.put("userId", userId != null ? userId : "default_user"); // Exemplo de contexto
+            // Adicione outras informações contextuais se necessário
+
+            // 3. Chamar o ChatClient com Tool Calling habilitado
+            String responseText = chatClient
+                    .prompt()
+                    .user(transcription)
+                    .system(systemPrompt)
+                    .context(context)
+                    .call()
+                    .content(); // O conteúdo da resposta final após Tool Calls
+
+
+            logger.info("Resposta gerada pela IA: {}", responseText);
+
+            // 4. Converter texto de resposta para áudio (simulado ou via API real)
+            // Para este exemplo, vamos simular a geração de áudio
+            byte[] audioResponse = simulateAudioGeneration(responseText); // Substitua por chamada real à API de síntese de voz
+
+            // 5. Retornar o áudio como resposta
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.parseMediaType("audio/wav")); // Ou mp3, ogg, etc.
+            headers.setContentLength(audioResponse.length);
+            headers.set(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=response.wav");
+
+            return ResponseEntity.ok().headers(headers).body(audioResponse);
+
+        } catch (Exception e) {
+            logger.error("Erro ao processar comando de voz: ", e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    // Simulação de transcrição. Substitua por uma chamada real à API (ex: OpenAI Audio API).
+    private String simulateTranscription(String audioData) {
+        // Simula a transcrição. Na vida real, envie audioFile.getBytes() para a API de transcrição.
+        // Exemplo: return openAiAudioApi.transcribe(audioFileResource, "audio/wav").getBody().getText();
+        return "Adicione uma despesa de R$ 50 para mercado hoje."; // Texto simulado
+    }
+
+    // Simulação de geração de áudio. Substitua por uma chamada real à API (ex: OpenAI TTS API).
+    private byte[] simulateAudioGeneration(String text) {
+        // Simula a geração de áudio. Na vida real, envie 'responseText' para a API de síntese de voz.
+        // Exemplo: return openAiAudioApi.speech(new SpeechRequest(text, "tts-1", "nova", 1.0)).getBody().getContent();
+        return ("Áudio simulado para: " + text).getBytes(); // Bytes simulados
+    }
+}
+
+
+Configuração do Banco de Dados (application.properties)
+properties
+
+# application.properties
+spring.datasource.url=jdbc:postgresql://localhost:5432/smart_budget_db
+spring.datasource.username=your_username
+spring.datasource.password=your_password
+spring.datasource.driver-class-name=org.postgresql.Driver
+
+spring.jpa.hibernate.ddl-auto=update # Cuidado em produção
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
+spring.jpa.properties.hibernate.format_sql=true
+
+# Configuração do Spring AI (exemplo para OpenAI)
+spring.ai.openai.api-key=${OPENAI_API_KEY:your-default-key-if-not-in-env} # Use variável de ambiente
+spring.ai.openai.chat.options.model=gpt-3.5-turbo # Ou gpt-4 etc.
+# Outras opções de configuração do modelo podem ser adicionadas aqui
+
+# Configuração de log para Spring AI (opcional, para debug)
+logging.level.org.springframework.ai=DEBUG
+
+
+Docker Compose para PostgreSQL (docker-compose.yml)
+
+# docker-compose.yml
+version: '3.8'
+services:
+  postgres:
+    image: postgres:15
+    container_name: smart_budget_postgres
+    environment:
+      POSTGRES_DB: smart_budget_db
+      POSTGRES_USER: your_username
+      POSTGRES_PASSWORD: your_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
+
+
+Para rodar o PostgreSQL com Docker:
+
+docker-compose up -d
+
+
+
+
+
