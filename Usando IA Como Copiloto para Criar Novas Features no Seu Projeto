@@ -1,0 +1,95 @@
+ utils.py
+
+def calcular_mediana(lista_numeros):
+    """
+    Calcula e retorna a mediana de uma lista de números.
+    A mediana é o valor que divide a lista ordenada ao meio.
+    Se a lista tiver um número par de elementos, a mediana é a
+    média dos dois valores centrais.
+    :param lista_numeros: Lista de números (int ou float)
+    :return: Mediana (float)
+    """
+    # Copilot geralmente começará a sugerir código aqui
+    # assim que você digitar a primeira linha após o docstring.
+
+
+ O Copilot pode sugerir automaticamente o corpo da função:
+
+def calcular_mediana(lista_numeros):
+    """
+    Calcula e retorna a mediana de uma lista de números.
+    A mediana é o valor que divide a lista ordenada ao meio.
+    Se a lista tiver um número par de elementos, a mediana é a
+    média dos dois valores centrais.
+    :param lista_numeros: Lista de números (int ou float)
+    :return: Mediana (float)
+    """
+    if not lista_numeros:
+        raise ValueError("A lista não pode estar vazia.")
+    lista_ordenada = sorted(lista_numeros)
+    n = len(lista_ordenada)
+    meio = n // 2
+    if n % 2 == 0:
+        return (lista_ordenada[meio - 1] + lista_ordenada[meio]) / 2
+    else:
+        return lista_ordenada[meio]
+
+# Você pode aceitar a sugestão ou ajustá-la.
+
+
+
+Crie um prompt personalizado no config.json do Continue para um modo de "Estudo":
+
+{
+  "customCommands": [
+    {
+      "name": "study",
+      "description": "Explique o código selecionado.",
+      "prompt": "Por favor, explique detalhadamente o seguinte código:\n\n{{selection}}"
+    },
+    {
+      "name": "plan",
+      "description": "Planeje uma nova feature com base na descrição.",
+      "prompt": "Planeje as etapas técnicas necessárias para implementar a seguinte feature: {{input}}\nConsidere o stack tecnológico: [ESPECIFIQUE SEU STACK AQUI - ex: React, Node.js, Express, PostgreSQL]."
+    }
+  ]
+}
+
+
+Escreva testes unitários JUnit 5 para a seguinte função Java:
+
+public class MathUtils {
+    public static int findMax(int a, int b) {
+        return a > b ? a : b;
+    }
+}
+
+Os testes devem cobrir os casos:
+- a > b
+- b > a
+- a == b
+
+
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
+
+public class MathUtilsTest {
+
+    @Test
+    public void testFindMax_A_MaiorQueB() {
+        assertEquals(5, MathUtils.findMax(5, 3));
+    }
+
+    @Test
+    public void testFindMax_B_MaiorQueA() {
+        assertEquals(10, MathUtils.findMax(7, 10));
+    }
+
+    @Test
+    public void testFindMax_A_IgualB() {
+        assertEquals(4, MathUtils.findMax(4, 4));
+    }
+}
+
+
+
